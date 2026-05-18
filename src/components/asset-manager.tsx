@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowLeftRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
@@ -9,11 +9,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useI18n } from "@/lib/i18n";
-import { fmtUSD, fmtPct } from "@/lib/format";
+import { fmtUSD, fmtCOP, fmtPct, fmtNum } from "@/lib/format";
 import { toast } from "sonner";
 
 type AssetType = Database["public"]["Enums"]["asset_type"];
 type Investment = Database["public"]["Tables"]["investments"]["Row"];
+
+const TYPE_LABELS_ES: Record<string, string> = {
+  STOCK_US: "Acción EEUU",
+  STOCK_CO: "Acción COL",
+  ETF: "ETF",
+  BOND: "Bono",
+  CRYPTO: "Cripto",
+};
 
 export function AssetManager({
   title,
@@ -67,31 +75,31 @@ export function AssetManager({
             <table className="w-full text-sm">
               <thead className="text-xs uppercase tracking-wider text-muted-foreground">
                 <tr>
-                  <th className="text-left p-3">{t("ticker")}</th>
+                  <th className="text-left p-3">{t("type")}</th>
                   <th className="text-left">{t("assetName")}</th>
                   <th className="text-left">{t("platform")}</th>
-                  <th className="text-right">{t("quantity")}</th>
                   <th className="text-right">{t("avgCost")}</th>
                   <th className="text-right">{t("currentPrice")}</th>
-                  <th className="text-right">USD</th>
                   <th className="text-right">{t("pnl")}</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((h) => {
-                  const v = Number(h.quantity) * Number(h.current_price_usd || h.avg_cost_usd);
                   const inv = Number(h.quantity) * Number(h.avg_cost_usd);
+                  const v = Number(h.quantity) * Number(h.current_price_usd || h.avg_cost_usd);
                   const pnl = v - inv;
                   const pct = inv ? pnl / inv : 0;
                   return (
                     <tr key={h.id} className="border-t border-border hover:bg-muted/30">
-                      <td className="p-3 font-mono font-semibold">{h.ticker}</td>
-                      <td>{h.name}</td>
+                      <td className="p-3">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-muted text-xs font-semibold">
+                          {TYPE_LABELS_ES[h.asset_type] ?? h.asset_type}
+                        </span>
+                      </td>
+                      <td className="font-semibold">{h.name}</td>
                       <td className="text-muted-foreground">{h.platform ?? "—"}</td>
-                      <td className="text-right tabular">{Number(h.quantity)}</td>
-                      <td className="text-right tabular">{fmtUSD(Number(h.avg_cost_usd))}</td>
-                      <td className="text-right tabular">{fmtUSD(Number(h.current_price_usd))}</td>
+                      <td className="text-right tabular">{fmtUSD(inv)}</td>
                       <td className="text-right tabular font-semibold">{fmtUSD(v)}</td>
                       <td className={`text-right tabular ${pnl >= 0 ? "text-success" : "text-destructive"}`}>
                         {fmtUSD(pnl)} <span className="text-xs">({fmtPct(pct)})</span>
@@ -118,38 +126,116 @@ export function AssetManager({
   );
 }
 
+type Rates = { COP: number; EUR: number; MXN: number; BRL: number };
+
+function useUsdRates() {
+  const [rates, setRates] = useState<Rates>({ COP: 4000, EUR: 0.92, MXN: 18, BRL: 5 });
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const r = await fetch("https://open.er-api.com/v6/latest/USD");
+        if (!r.ok) return;
+        const j = await r.json();
+        if (!alive || !j?.rates) return;
+        setRates({
+          COP: j.rates.COP ?? 4000,
+          EUR: j.rates.EUR ?? 0.92,
+          MXN: j.rates.MXN ?? 18,
+          BRL: j.rates.BRL ?? 5,
+        });
+        setLoaded(true);
+      } catch { /* ignore */ }
+    })();
+    return () => { alive = false; };
+  }, []);
+  return { rates, loaded };
+}
+
+function MoneyPair({
+  label, usd, setUsd, trm,
+}: { label: string; usd: string; setUsd: (v: string) => void; trm: number }) {
+  const [cop, setCop] = useState<string>(() => {
+    const n = Number(usd);
+    return n ? String(Math.round(n * trm)) : "";
+  });
+  // when usd changes externally
+  useEffect(() => {
+    const n = Number(usd);
+    setCop(n ? String(Math.round(n * trm)) : "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [usd, trm]);
+
+  return (
+    <div className="space-y-2 rounded-lg border border-border p-3 bg-muted/20">
+      <Label className="text-xs uppercase tracking-wider text-muted-foreground">{label}</Label>
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+        <div>
+          <div className="text-[10px] text-muted-foreground mb-1">USD</div>
+          <Input type="number" step="any" value={usd} onChange={(e) => setUsd(e.target.value)} placeholder="0.00" />
+        </div>
+        <ArrowLeftRight className="size-4 text-muted-foreground mt-4" />
+        <div>
+          <div className="text-[10px] text-muted-foreground mb-1">COP</div>
+          <Input
+            type="number" step="any" value={cop}
+            onChange={(e) => {
+              const v = e.target.value;
+              setCop(v);
+              const n = Number(v);
+              setUsd(n && trm ? (n / trm).toFixed(2) : "");
+            }}
+            placeholder="0"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AssetDialog({ open, onClose, editing, allowedTypes, defaultType }: {
   open: boolean; onClose: () => void; editing: Investment | null;
   allowedTypes: { value: AssetType; label: string }[]; defaultType: AssetType;
 }) {
   const { t } = useI18n();
   const qc = useQueryClient();
-  const [form, setForm] = useState(() => ({
-    asset_type: (editing?.asset_type ?? defaultType) as AssetType,
-    ticker: editing?.ticker ?? "",
-    name: editing?.name ?? "",
-    platform: editing?.platform ?? "",
-    quantity: String(editing?.quantity ?? ""),
-    avg_cost_usd: String(editing?.avg_cost_usd ?? ""),
-    current_price_usd: String(editing?.current_price_usd ?? ""),
-  }));
+  const { rates } = useUsdRates();
 
-  // reset when editing changes
-  useState(() => form);
+  const [form, setForm] = useState({
+    asset_type: defaultType as AssetType,
+    name: "",
+    platform: "",
+    invested_usd: "",
+    current_usd: "",
+  });
+
+  useEffect(() => {
+    if (!open) return;
+    setForm({
+      asset_type: (editing?.asset_type ?? defaultType) as AssetType,
+      name: editing?.name ?? "",
+      platform: editing?.platform ?? "",
+      invested_usd: editing ? String(Number(editing.quantity) * Number(editing.avg_cost_usd) || "") : "",
+      current_usd: editing ? String(Number(editing.quantity) * Number(editing.current_price_usd) || "") : "",
+    });
+  }, [open, editing, defaultType]);
 
   const save = useMutation({
     mutationFn: async () => {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) throw new Error("Not authenticated");
+      const invested = Number(form.invested_usd) || 0;
+      const current = Number(form.current_usd) || invested;
       const payload = {
         user_id: u.user.id,
         asset_type: form.asset_type,
-        ticker: form.ticker.trim().toUpperCase(),
-        name: form.name.trim() || form.ticker.trim().toUpperCase(),
+        ticker: (form.name.trim().slice(0, 8) || form.asset_type).toUpperCase(),
+        name: form.name.trim() || (TYPE_LABELS_ES[form.asset_type] ?? form.asset_type),
         platform: form.platform.trim() || null,
-        quantity: Number(form.quantity) || 0,
-        avg_cost_usd: Number(form.avg_cost_usd) || 0,
-        current_price_usd: Number(form.current_price_usd) || Number(form.avg_cost_usd) || 0,
+        quantity: 1,
+        avg_cost_usd: invested,
+        current_price_usd: current,
       };
       if (editing) {
         const { error } = await supabase.from("investments").update(payload).eq("id", editing.id);
@@ -169,7 +255,7 @@ function AssetDialog({ open, onClose, editing, allowedTypes, defaultType }: {
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent>
+      <DialogContent className="max-w-lg">
         <DialogHeader><DialogTitle>{editing ? t("editAsset") : t("addAsset")}</DialogTitle></DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2">
@@ -177,16 +263,45 @@ function AssetDialog({ open, onClose, editing, allowedTypes, defaultType }: {
             <Select value={form.asset_type} onValueChange={(v) => setForm({ ...form, asset_type: v as AssetType })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {allowedTypes.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                {allowedTypes.map((opt) => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
-          <div><Label>{t("ticker")}</Label><Input value={form.ticker} onChange={(e) => setForm({ ...form, ticker: e.target.value })} /></div>
-          <div><Label>{t("assetName")}</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-          <div className="col-span-2"><Label>{t("platform")}</Label><Input value={form.platform} onChange={(e) => setForm({ ...form, platform: e.target.value })} placeholder="Insight, Buda.com, ..." /></div>
-          <div><Label>{t("quantity")}</Label><Input type="number" step="any" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} /></div>
-          <div><Label>{t("avgCost")}</Label><Input type="number" step="any" value={form.avg_cost_usd} onChange={(e) => setForm({ ...form, avg_cost_usd: e.target.value })} /></div>
-          <div className="col-span-2"><Label>{t("currentPrice")}</Label><Input type="number" step="any" value={form.current_price_usd} onChange={(e) => setForm({ ...form, current_price_usd: e.target.value })} placeholder={t("refreshPrices")} /></div>
+          <div className="col-span-2">
+            <Label>{t("assetName")}</Label>
+            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Apple, S&P 500, Bitcoin..." />
+          </div>
+          <div className="col-span-2">
+            <Label>{t("platform")}</Label>
+            <Input value={form.platform} onChange={(e) => setForm({ ...form, platform: e.target.value })} placeholder="Insight, Buda.com, Trii..." />
+          </div>
+
+          <div className="col-span-2">
+            <MoneyPair
+              label={t("avgCost")}
+              usd={form.invested_usd}
+              setUsd={(v) => setForm((f) => ({ ...f, invested_usd: v }))}
+              trm={rates.COP}
+            />
+          </div>
+          <div className="col-span-2">
+            <MoneyPair
+              label={t("currentPrice")}
+              usd={form.current_usd}
+              setUsd={(v) => setForm((f) => ({ ...f, current_usd: v }))}
+              trm={rates.COP}
+            />
+          </div>
+
+          <div className="col-span-2 rounded-lg border border-border p-3 bg-muted/10">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">{t("liveRates")} · 1 USD</div>
+            <div className="grid grid-cols-4 gap-2 text-sm">
+              <RateCell code="COP" value={fmtNum(rates.COP, 0)} />
+              <RateCell code="EUR" value={fmtNum(rates.EUR, 4)} />
+              <RateCell code="MXN" value={fmtNum(rates.MXN, 2)} />
+              <RateCell code="BRL" value={fmtNum(rates.BRL, 2)} />
+            </div>
+          </div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>{t("cancel")}</Button>
@@ -194,5 +309,14 @@ function AssetDialog({ open, onClose, editing, allowedTypes, defaultType }: {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function RateCell({ code, value }: { code: string; value: string }) {
+  return (
+    <div className="rounded-md bg-background/60 px-2 py-1.5 text-center">
+      <div className="text-[10px] text-muted-foreground">{code}</div>
+      <div className="font-mono tabular font-semibold">{value}</div>
+    </div>
   );
 }
