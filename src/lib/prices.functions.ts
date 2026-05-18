@@ -78,9 +78,13 @@ export const refreshPrices = createServerFn({ method: "POST" })
     for (const h of holdings ?? []) {
       const p = all[h.ticker.toUpperCase()];
       if (typeof p === "number") {
-        updates.push(supabase.from("investments").update({
-          current_price_usd: p, price_updated_at: now,
-        }).eq("id", h.id));
+        updates.push(
+          Promise.resolve(
+            supabase.from("investments").update({
+              current_price_usd: p, price_updated_at: now,
+            }).eq("id", h.id)
+          )
+        );
       }
     }
     await Promise.all(updates);
