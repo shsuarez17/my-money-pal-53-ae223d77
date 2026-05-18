@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useI18n } from "@/lib/i18n";
-import { fmtUSD, fmtCOP, fmtPct, fmtNum } from "@/lib/format";
+import { fmtUSD, fmtPct, fmtNum } from "@/lib/format";
 import { toast } from "sonner";
 
 type AssetType = Database["public"]["Enums"]["asset_type"];
