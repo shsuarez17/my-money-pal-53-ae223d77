@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, redirect, Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
-import { LayoutDashboard, LineChart, Bitcoin, Target, RefreshCw, LogOut, Repeat, Settings } from "lucide-react";
+import { LayoutDashboard, LineChart, Bitcoin, Target, RefreshCw, LogOut, Repeat, Settings, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -26,6 +26,7 @@ function AuthedLayout() {
     { to: "/goals", label: t("goals"), icon: Target },
     { to: "/recurring", label: t("recurring"), icon: Repeat },
     { to: "/settings", label: t("settings"), icon: Settings },
+    { to: "/guide", label: t("guide"), icon: BookOpen },
   ] as const;
 
   const logout = async () => {

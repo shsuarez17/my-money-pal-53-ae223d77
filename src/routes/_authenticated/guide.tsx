@@ -130,7 +130,3 @@ function GuidePage() {
   );
 }
 
-// avoid unused import lint warning if user toggles
-export const _t = (s: string) => s;
-const _Use = useI18n; void _Use; void t;
-function t() { return null; }
