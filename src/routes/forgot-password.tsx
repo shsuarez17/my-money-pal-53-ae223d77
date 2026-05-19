@@ -13,7 +13,7 @@ export const Route = createFileRoute("/forgot-password")({
 });
 
 function ForgotPasswordPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -38,7 +38,7 @@ function ForgotPasswordPage() {
         <p className="text-sm text-muted-foreground mb-6">
           {sent
             ? t("resetLinkSent")
-            : t("lang") === "es"
+            : lang === "es"
               ? "Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña."
               : "Enter your email and we'll send you a link to reset your password."}
         </p>
