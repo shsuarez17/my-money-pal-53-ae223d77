@@ -1,4 +1,4 @@
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
@@ -73,6 +73,9 @@ function LoginPage() {
           <TabsContent value="login" className="space-y-3 mt-4">
             <div><Label>{t("email")}</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
             <div><Label>{t("password")}</Label><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
+            <div className="flex justify-end">
+              <Link to="/forgot-password" className="text-xs text-primary hover:underline">{t("forgotPassword")}</Link>
+            </div>
             <Button className="w-full" disabled={loading} onClick={signIn}>{t("login")}</Button>
           </TabsContent>
           <TabsContent value="signup" className="space-y-3 mt-4">
