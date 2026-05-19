@@ -67,12 +67,14 @@ export type Database = {
           asset_type: Database["public"]["Enums"]["asset_type"]
           avg_cost_usd: number
           created_at: string
+          currency: string
           current_price_usd: number
           id: string
           name: string
           notes: string | null
           platform: string | null
           price_updated_at: string | null
+          purchase_date: string
           quantity: number
           ticker: string
           updated_at: string
@@ -82,12 +84,14 @@ export type Database = {
           asset_type: Database["public"]["Enums"]["asset_type"]
           avg_cost_usd?: number
           created_at?: string
+          currency?: string
           current_price_usd?: number
           id?: string
           name: string
           notes?: string | null
           platform?: string | null
           price_updated_at?: string | null
+          purchase_date?: string
           quantity?: number
           ticker: string
           updated_at?: string
@@ -97,12 +101,14 @@ export type Database = {
           asset_type?: Database["public"]["Enums"]["asset_type"]
           avg_cost_usd?: number
           created_at?: string
+          currency?: string
           current_price_usd?: number
           id?: string
           name?: string
           notes?: string | null
           platform?: string | null
           price_updated_at?: string | null
+          purchase_date?: string
           quantity?: number
           ticker?: string
           updated_at?: string

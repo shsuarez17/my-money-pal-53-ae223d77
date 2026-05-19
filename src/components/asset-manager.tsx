@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, ArrowLeftRight } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowDownUp, CalendarIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,9 @@ const TYPE_LABELS_ES: Record<string, string> = {
   BOND: "Bono",
   CRYPTO: "Cripto",
 };
+
+const CURRENCIES = ["USD", "COP", "EUR", "MXN", "BRL"] as const;
+type Currency = (typeof CURRENCIES)[number];
 
 export function AssetManager({
   title,
@@ -78,6 +81,7 @@ export function AssetManager({
                   <th className="text-left p-3">{t("type")}</th>
                   <th className="text-left">{t("assetName")}</th>
                   <th className="text-left">{t("platform")}</th>
+                  <th className="text-left">{t("purchaseDate")}</th>
                   <th className="text-right">{t("avgCost")}</th>
                   <th className="text-right">{t("currentPrice")}</th>
                   <th className="text-right">{t("pnl")}</th>
@@ -99,6 +103,7 @@ export function AssetManager({
                       </td>
                       <td className="font-semibold">{h.name}</td>
                       <td className="text-muted-foreground">{h.platform ?? "—"}</td>
+                      <td className="text-muted-foreground tabular text-xs">{(h as any).purchase_date ?? "—"}</td>
                       <td className="text-right tabular">{fmtUSD(inv)}</td>
                       <td className="text-right tabular font-semibold">{fmtUSD(v)}</td>
                       <td className={`text-right tabular ${pnl >= 0 ? "text-success" : "text-destructive"}`}>
@@ -126,11 +131,10 @@ export function AssetManager({
   );
 }
 
-type Rates = { COP: number; EUR: number; MXN: number; BRL: number };
+type Rates = Record<Currency, number>;
 
 function useUsdRates() {
-  const [rates, setRates] = useState<Rates>({ COP: 4000, EUR: 0.92, MXN: 18, BRL: 5 });
-  const [loaded, setLoaded] = useState(false);
+  const [rates, setRates] = useState<Rates>({ USD: 1, COP: 4000, EUR: 0.92, MXN: 18, BRL: 5 });
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -140,56 +144,86 @@ function useUsdRates() {
         const j = await r.json();
         if (!alive || !j?.rates) return;
         setRates({
+          USD: 1,
           COP: j.rates.COP ?? 4000,
           EUR: j.rates.EUR ?? 0.92,
           MXN: j.rates.MXN ?? 18,
           BRL: j.rates.BRL ?? 5,
         });
-        setLoaded(true);
       } catch { /* ignore */ }
     })();
     return () => { alive = false; };
   }, []);
-  return { rates, loaded };
+  return rates;
 }
 
-function MoneyPair({
-  label, usd, setUsd, trm,
-}: { label: string; usd: string; setUsd: (v: string) => void; trm: number }) {
-  const [cop, setCop] = useState<string>(() => {
+/**
+ * Amount input in a chosen currency. Value stored in parent as USD (number string).
+ * Local `amount` is the source of truth while user types; conversion to USD on each change.
+ */
+function MoneyField({
+  label,
+  currency,
+  setCurrency,
+  usd,
+  setUsd,
+  rates,
+}: {
+  label: string;
+  currency: Currency;
+  setCurrency: (c: Currency) => void;
+  usd: string;
+  setUsd: (v: string) => void;
+  rates: Rates;
+}) {
+  // local input string in selected currency, decoupled from parent usd to preserve precision while typing
+  const initial = useMemo(() => {
     const n = Number(usd);
-    return n ? String(Math.round(n * trm)) : "";
-  });
-  // when usd changes externally
+    if (!n) return "";
+    const v = n * rates[currency];
+    return currency === "COP" || currency === "MXN" ? String(Math.round(v)) : v.toFixed(2);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const [amount, setAmount] = useState<string>(initial);
+
+  // when currency changes, reflow the amount from the canonical USD
   useEffect(() => {
     const n = Number(usd);
-    setCop(n ? String(Math.round(n * trm)) : "");
+    if (!n) { setAmount(""); return; }
+    const v = n * rates[currency];
+    setAmount(currency === "COP" || currency === "MXN" ? String(Math.round(v)) : v.toFixed(2));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [usd, trm]);
+  }, [currency]);
+
+  const onAmountChange = (v: string) => {
+    setAmount(v);
+    const n = Number(v);
+    const rate = rates[currency] || 1;
+    setUsd(n ? (n / rate).toFixed(6) : "");
+  };
+
+  const usdPreview = Number(usd) ? fmtUSD(Number(usd)) : "—";
 
   return (
     <div className="space-y-2 rounded-lg border border-border p-3 bg-muted/20">
       <Label className="text-xs uppercase tracking-wider text-muted-foreground">{label}</Label>
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-        <div>
-          <div className="text-[10px] text-muted-foreground mb-1">USD</div>
-          <Input type="number" step="any" value={usd} onChange={(e) => setUsd(e.target.value)} placeholder="0.00" />
-        </div>
-        <ArrowLeftRight className="size-4 text-muted-foreground mt-4" />
-        <div>
-          <div className="text-[10px] text-muted-foreground mb-1">COP</div>
-          <Input
-            type="number" step="any" value={cop}
-            onChange={(e) => {
-              const v = e.target.value;
-              setCop(v);
-              const n = Number(v);
-              setUsd(n && trm ? (n / trm).toFixed(2) : "");
-            }}
-            placeholder="0"
-          />
-        </div>
+      <div className="grid grid-cols-[1fr_120px] gap-2">
+        <Input
+          type="number"
+          inputMode="decimal"
+          step="any"
+          value={amount}
+          onChange={(e) => onAmountChange(e.target.value)}
+          placeholder="0"
+        />
+        <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {CURRENCIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
+      <div className="text-[11px] text-muted-foreground font-mono">≈ {usdPreview} USD</div>
     </div>
   );
 }
@@ -200,26 +234,36 @@ function AssetDialog({ open, onClose, editing, allowedTypes, defaultType }: {
 }) {
   const { t } = useI18n();
   const qc = useQueryClient();
-  const { rates } = useUsdRates();
+  const rates = useUsdRates();
 
   const [form, setForm] = useState({
     asset_type: defaultType as AssetType,
     name: "",
     platform: "",
+    currency: "USD" as Currency,
     invested_usd: "",
     current_usd: "",
+    purchase_date: new Date().toISOString().slice(0, 10),
   });
 
   useEffect(() => {
     if (!open) return;
+    const editCurrency = ((editing as any)?.currency as Currency) ?? "USD";
     setForm({
       asset_type: (editing?.asset_type ?? defaultType) as AssetType,
       name: editing?.name ?? "",
       platform: editing?.platform ?? "",
+      currency: CURRENCIES.includes(editCurrency) ? editCurrency : "USD",
       invested_usd: editing ? String(Number(editing.quantity) * Number(editing.avg_cost_usd) || "") : "",
       current_usd: editing ? String(Number(editing.quantity) * Number(editing.current_price_usd) || "") : "",
+      purchase_date: (editing as any)?.purchase_date ?? new Date().toISOString().slice(0, 10),
     });
   }, [open, editing, defaultType]);
+
+  const swapAmounts = () => {
+    setForm((f) => ({ ...f, invested_usd: f.current_usd, current_usd: f.invested_usd }));
+    toast.success(t("amountsSwapped"));
+  };
 
   const save = useMutation({
     mutationFn: async () => {
@@ -233,6 +277,8 @@ function AssetDialog({ open, onClose, editing, allowedTypes, defaultType }: {
         ticker: (form.name.trim().slice(0, 8) || form.asset_type).toUpperCase(),
         name: form.name.trim() || (TYPE_LABELS_ES[form.asset_type] ?? form.asset_type),
         platform: form.platform.trim() || null,
+        currency: form.currency,
+        purchase_date: form.purchase_date,
         quantity: 1,
         avg_cost_usd: invested,
         current_price_usd: current,
@@ -255,7 +301,7 @@ function AssetDialog({ open, onClose, editing, allowedTypes, defaultType }: {
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle>{editing ? t("editAsset") : t("addAsset")}</DialogTitle></DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2">
@@ -271,25 +317,40 @@ function AssetDialog({ open, onClose, editing, allowedTypes, defaultType }: {
             <Label>{t("assetName")}</Label>
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Apple, S&P 500, Bitcoin..." />
           </div>
-          <div className="col-span-2">
+          <div className="col-span-1">
             <Label>{t("platform")}</Label>
-            <Input value={form.platform} onChange={(e) => setForm({ ...form, platform: e.target.value })} placeholder="Insight, Buda.com, Trii..." />
+            <Input value={form.platform} onChange={(e) => setForm({ ...form, platform: e.target.value })} placeholder="Insight, Buda, Trii..." />
+          </div>
+          <div className="col-span-1">
+            <Label className="flex items-center gap-1"><CalendarIcon className="size-3.5" /> {t("purchaseDate")}</Label>
+            <Input type="date" value={form.purchase_date} onChange={(e) => setForm({ ...form, purchase_date: e.target.value })} />
           </div>
 
           <div className="col-span-2">
-            <MoneyPair
+            <MoneyField
               label={t("avgCost")}
+              currency={form.currency}
+              setCurrency={(c) => setForm((f) => ({ ...f, currency: c }))}
               usd={form.invested_usd}
               setUsd={(v) => setForm((f) => ({ ...f, invested_usd: v }))}
-              trm={rates.COP}
+              rates={rates}
             />
           </div>
+
+          <div className="col-span-2 flex justify-center -my-1">
+            <Button type="button" variant="ghost" size="sm" onClick={swapAmounts} className="gap-1.5">
+              <ArrowDownUp className="size-4" /> {t("swapAmounts")}
+            </Button>
+          </div>
+
           <div className="col-span-2">
-            <MoneyPair
+            <MoneyField
               label={t("currentPrice")}
+              currency={form.currency}
+              setCurrency={(c) => setForm((f) => ({ ...f, currency: c }))}
               usd={form.current_usd}
               setUsd={(v) => setForm((f) => ({ ...f, current_usd: v }))}
-              trm={rates.COP}
+              rates={rates}
             />
           </div>
 

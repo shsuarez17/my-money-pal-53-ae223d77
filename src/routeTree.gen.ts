@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedStocksRouteImport } from './routes/_authenticated/stocks'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedRecurringRouteImport } from './routes/_authenticated/recurring'
+import { Route as AuthenticatedGuideRouteImport } from './routes/_authenticated/guide'
 import { Route as AuthenticatedGoalsRouteImport } from './routes/_authenticated/goals'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedCryptoRouteImport } from './routes/_authenticated/crypto'
@@ -48,6 +49,11 @@ const AuthenticatedRecurringRoute = AuthenticatedRecurringRouteImport.update({
   path: '/recurring',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedGuideRoute = AuthenticatedGuideRouteImport.update({
+  id: '/guide',
+  path: '/guide',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedGoalsRoute = AuthenticatedGoalsRouteImport.update({
   id: '/goals',
   path: '/goals',
@@ -70,6 +76,7 @@ export interface FileRoutesByFullPath {
   '/crypto': typeof AuthenticatedCryptoRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/goals': typeof AuthenticatedGoalsRoute
+  '/guide': typeof AuthenticatedGuideRoute
   '/recurring': typeof AuthenticatedRecurringRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/stocks': typeof AuthenticatedStocksRoute
@@ -80,6 +87,7 @@ export interface FileRoutesByTo {
   '/crypto': typeof AuthenticatedCryptoRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/goals': typeof AuthenticatedGoalsRoute
+  '/guide': typeof AuthenticatedGuideRoute
   '/recurring': typeof AuthenticatedRecurringRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/stocks': typeof AuthenticatedStocksRoute
@@ -92,6 +100,7 @@ export interface FileRoutesById {
   '/_authenticated/crypto': typeof AuthenticatedCryptoRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/goals': typeof AuthenticatedGoalsRoute
+  '/_authenticated/guide': typeof AuthenticatedGuideRoute
   '/_authenticated/recurring': typeof AuthenticatedRecurringRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/stocks': typeof AuthenticatedStocksRoute
@@ -104,6 +113,7 @@ export interface FileRouteTypes {
     | '/crypto'
     | '/dashboard'
     | '/goals'
+    | '/guide'
     | '/recurring'
     | '/settings'
     | '/stocks'
@@ -114,6 +124,7 @@ export interface FileRouteTypes {
     | '/crypto'
     | '/dashboard'
     | '/goals'
+    | '/guide'
     | '/recurring'
     | '/settings'
     | '/stocks'
@@ -125,6 +136,7 @@ export interface FileRouteTypes {
     | '/_authenticated/crypto'
     | '/_authenticated/dashboard'
     | '/_authenticated/goals'
+    | '/_authenticated/guide'
     | '/_authenticated/recurring'
     | '/_authenticated/settings'
     | '/_authenticated/stocks'
@@ -180,6 +192,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRecurringRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/guide': {
+      id: '/_authenticated/guide'
+      path: '/guide'
+      fullPath: '/guide'
+      preLoaderRoute: typeof AuthenticatedGuideRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/goals': {
       id: '/_authenticated/goals'
       path: '/goals'
@@ -208,6 +227,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedCryptoRoute: typeof AuthenticatedCryptoRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedGoalsRoute: typeof AuthenticatedGoalsRoute
+  AuthenticatedGuideRoute: typeof AuthenticatedGuideRoute
   AuthenticatedRecurringRoute: typeof AuthenticatedRecurringRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedStocksRoute: typeof AuthenticatedStocksRoute
@@ -217,6 +237,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedCryptoRoute: AuthenticatedCryptoRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedGoalsRoute: AuthenticatedGoalsRoute,
+  AuthenticatedGuideRoute: AuthenticatedGuideRoute,
   AuthenticatedRecurringRoute: AuthenticatedRecurringRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedStocksRoute: AuthenticatedStocksRoute,
