@@ -179,37 +179,40 @@ function Dashboard() {
             <table className="w-full text-sm">
               <thead className="text-xs uppercase tracking-wider text-muted-foreground">
                 <tr>
-                  <th className="text-left py-2">{t("ticker")}</th>
+                  <th className="text-left py-2">{t("assetName")}</th>
                   <th className="text-left">{t("type")}</th>
-                  <th className="text-right">{t("quantity")}</th>
-                  <th className="text-right">{t("avgCost")}</th>
-                  <th className="text-right">{t("currentPrice")}</th>
-                  <th className="text-right">USD</th>
-                  <th className="text-right">{t("pnl")}</th>
+                  <th className="text-right">#</th>
+                  <th className="text-right">{t("totalInvested")} (USD)</th>
+                  <th className="text-right">COP</th>
                 </tr>
               </thead>
               <tbody>
-                {(holdingsQ.data ?? []).map((h) => {
-                  const value = Number(h.quantity) * Number(h.current_price_usd || h.avg_cost_usd);
-                  const inv = Number(h.quantity) * Number(h.avg_cost_usd);
-                  const pnl = value - inv;
-                  return (
-                    <tr key={h.id} className="border-t border-border">
-                      <td className="py-3 font-mono font-semibold">{h.ticker}</td>
-                      <td className="text-xs text-muted-foreground">{h.asset_type}</td>
-                      <td className="text-right tabular">{Number(h.quantity)}</td>
-                      <td className="text-right tabular">{fmtUSD(Number(h.avg_cost_usd))}</td>
-                      <td className="text-right tabular">{fmtUSD(Number(h.current_price_usd))}</td>
-                      <td className="text-right tabular font-semibold">{fmtUSD(value)}</td>
-                      <td className={`text-right tabular ${pnl >= 0 ? "text-success" : "text-destructive"}`}>{fmtUSD(pnl)}</td>
+                {(() => {
+                  const map = new Map<string, { name: string; type: string; invested: number; count: number }>();
+                  for (const h of holdingsQ.data ?? []) {
+                    const key = `${h.asset_type}::${h.name.toLowerCase()}`;
+                    const inv = Number(h.quantity) * Number(h.avg_cost_usd);
+                    const e = map.get(key) ?? { name: h.name, type: h.asset_type, invested: 0, count: 0 };
+                    e.invested += inv; e.count += 1;
+                    map.set(key, e);
+                  }
+                  const rows = Array.from(map.values()).sort((a, b) => b.invested - a.invested);
+                  return rows.map((r, i) => (
+                    <tr key={i} className="border-t border-border">
+                      <td className="py-3 font-semibold">{r.name}</td>
+                      <td className="text-xs text-muted-foreground">{r.type}</td>
+                      <td className="text-right tabular">{r.count}</td>
+                      <td className="text-right tabular font-mono font-semibold">{fmtUSD(r.invested)}</td>
+                      <td className="text-right tabular font-mono text-muted-foreground">{fmtCOP(r.invested * fx)}</td>
                     </tr>
-                  );
-                })}
+                  ));
+                })()}
               </tbody>
             </table>
           </div>
         )}
       </div>
+
     </div>
   );
 }
