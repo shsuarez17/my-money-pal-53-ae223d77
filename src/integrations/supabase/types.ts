@@ -36,8 +36,10 @@ export type Database = {
         Row: {
           color: string | null
           created_at: string
+          currency: string
           id: string
           name: string
+          start_date: string | null
           target_amount_usd: number
           target_date: string | null
           user_id: string
@@ -45,8 +47,10 @@ export type Database = {
         Insert: {
           color?: string | null
           created_at?: string
+          currency?: string
           id?: string
           name: string
+          start_date?: string | null
           target_amount_usd: number
           target_date?: string | null
           user_id: string
@@ -54,8 +58,10 @@ export type Database = {
         Update: {
           color?: string | null
           created_at?: string
+          currency?: string
           id?: string
           name?: string
+          start_date?: string | null
           target_amount_usd?: number
           target_date?: string | null
           user_id?: string
@@ -150,6 +156,7 @@ export type Database = {
         Row: {
           base_currency: string
           created_at: string
+          custom_asset_types: string[]
           display_name: string | null
           id: string
           language: string
@@ -158,6 +165,7 @@ export type Database = {
         Insert: {
           base_currency?: string
           created_at?: string
+          custom_asset_types?: string[]
           display_name?: string | null
           id: string
           language?: string
@@ -166,6 +174,7 @@ export type Database = {
         Update: {
           base_currency?: string
           created_at?: string
+          custom_asset_types?: string[]
           display_name?: string | null
           id?: string
           language?: string
@@ -178,6 +187,7 @@ export type Database = {
           active: boolean
           amount_usd: number
           created_at: string
+          currency: string
           frequency: Database["public"]["Enums"]["recur_freq"]
           id: string
           investment_id: string | null
@@ -188,6 +198,7 @@ export type Database = {
           active?: boolean
           amount_usd: number
           created_at?: string
+          currency?: string
           frequency: Database["public"]["Enums"]["recur_freq"]
           id?: string
           investment_id?: string | null
@@ -198,6 +209,7 @@ export type Database = {
           active?: boolean
           amount_usd?: number
           created_at?: string
+          currency?: string
           frequency?: Database["public"]["Enums"]["recur_freq"]
           id?: string
           investment_id?: string | null
